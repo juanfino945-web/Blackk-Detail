@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #F2F1ED;
+  --surface: #FFFFFF;
+  --ink: #15171A;
+  --ink-soft: #53565C;
+  --line: #DEDBD3;
+  --steel: #8B8D91;
+  --steel-dark: #5B5E63;
+  --dark: #101214;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3, .font-display {
+  font-family: 'Oswald', sans-serif;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-[2px] transition;
+}
+.btn-primary {
+  @apply bg-white text-[var(--dark)] hover:bg-[var(--steel)] hover:text-white;
+}
+.btn-outline {
+  @apply border border-white/30 text-white hover:border-white hover:bg-white/10;
+}
+.btn-wsp {
+  @apply bg-[#1E2A22] text-white border border-[#2E4534] hover:bg-[#25342A];
+}
+.btn-dark {
+  @apply border border-[var(--line)] bg-[var(--bg)] text-[var(--ink)] hover:bg-[var(--dark)] hover:text-white hover:border-[var(--dark)];
+}
