@@ -180,14 +180,14 @@ export default function CatalogClient({ initialProducts }) {
         </div>
       </section>
 
-      {/* CONTACTO */}
+          {/* CONTACTO */}
       <section id="contacto" className="bg-[var(--bg)] py-20">
         <div className="max-w-6xl mx-auto px-6">
           <h2 className="font-display text-3xl md:text-4xl">Contacto</h2>
           <p className="text-[var(--ink-soft)] mt-2 mb-8 max-w-xl">
-            Escribinos por WhatsApp para consultar precios, disponibilidad o hacer tu pedido.
+            Escribinos por WhatsApp, mail o Instagram para consultar precios, disponibilidad o hacer tu pedido.
           </p>
-          <div className="grid md:grid-cols-2 gap-5">
+          <div className="grid md:grid-cols-3 gap-5">
             <div className="bg-white border border-[var(--line)] p-8 flex flex-col gap-3">
               <div className="w-11 h-11 rounded-full bg-[var(--dark)] text-white flex items-center justify-center">
                 <WspIcon className="w-5 h-5" />
@@ -206,6 +206,16 @@ export default function CatalogClient({ initialProducts }) {
               <p className="text-sm text-[var(--ink-soft)]">@blackk.detail</p>
               <a href="https://instagram.com/blackk.detail" target="_blank" rel="noopener noreferrer" className="btn btn-dark self-start border">Ver perfil</a>
             </div>
+            <div className="bg-white border border-[var(--line)] p-8 flex flex-col gap-3">
+              <div className="w-11 h-11 rounded-full bg-[var(--dark)] text-white flex items-center justify-center">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M3 6h18v12H3z" /><path d="M3 7l9 6 9-6" />
+                </svg>
+              </div>
+              <h3 className="font-display text-lg">Email</h3>
+              <p className="text-sm text-[var(--ink-soft)]">blackkdetail@gmail.com</p>
+              <a href="mailto:blackkdetail@gmail.com" className="btn btn-dark self-start border">Enviar mail</a>
+            </div>
           </div>
         </div>
       </section>
@@ -218,7 +228,7 @@ export default function CatalogClient({ initialProducts }) {
           </div>
           <div className="flex justify-between flex-wrap gap-2 text-xs">
             <span>Productos para detailing y cuidado automotor.</span>
-            <span>WhatsApp +54 3492 270506 · @blackk.detail</span>
+            <span>WhatsApp +54 3492 270506 · blackkdetail@gmail.com · @blackk.detail</span>
           </div>
         </div>
       </footer>
