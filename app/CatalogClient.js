@@ -203,8 +203,8 @@ export default function CatalogClient({ initialProducts }) {
                 </svg>
               </div>
               <h3 className="font-display text-lg">Instagram</h3>
-              <p className="text-sm text-[var(--ink-soft)]">@blackk_detail</p>
-              <a href="https://instagram.com/blackk_detail" target="_blank" rel="noopener noreferrer" className="btn btn-dark self-start border">Ver perfil</a>
+              <p className="text-sm text-[var(--ink-soft)]">@blackk.detail</p>
+              <a href="https://instagram.com/blackk.detail" target="_blank" rel="noopener noreferrer" className="btn btn-dark self-start border">Ver perfil</a>
             </div>
           </div>
         </div>
@@ -218,7 +218,7 @@ export default function CatalogClient({ initialProducts }) {
           </div>
           <div className="flex justify-between flex-wrap gap-2 text-xs">
             <span>Productos para detailing y cuidado automotor.</span>
-            <span>WhatsApp +54 3492 270506 · @blackk_detail</span>
+            <span>WhatsApp +54 3492 270506 · @blackk.detail</span>
           </div>
         </div>
       </footer>
