@@ -6,12 +6,14 @@
 // Esto crea la tabla "products" (si no existe) y carga los 29 productos
 // iniciales, subiendo cada imagen a Vercel Blob.
 
-import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { neon } from '@neondatabase/serverless';
 import { put } from '@vercel/blob';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: '.env.local' });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
