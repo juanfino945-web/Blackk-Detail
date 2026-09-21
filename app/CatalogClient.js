@@ -265,7 +265,6 @@ export default function CatalogClient({ initialProducts }) {
                 <WspIcon className="w-5 h-5" />
               </div>
               <h3 className="font-display text-lg">WhatsApp</h3>
-              <p className="text-sm text-[var(--ink-soft)]">+54 3492 270506</p>
               <a href={genericWa} target="_blank" rel="noopener noreferrer" className="btn btn-wsp self-start">Abrir chat</a>
             </Reveal>
             <Reveal delay={100} className="bg-white border border-[var(--line)] p-8 flex flex-col gap-3">
@@ -275,7 +274,6 @@ export default function CatalogClient({ initialProducts }) {
                 </svg>
               </div>
               <h3 className="font-display text-lg">Instagram</h3>
-              <p className="text-sm text-[var(--ink-soft)]">@blackk.detail</p>
               <a href="https://instagram.com/blackk.detail" target="_blank" rel="noopener noreferrer" className="btn btn-dark self-start border">Ver perfil</a>
             </Reveal>
             <Reveal delay={200} className="bg-white border border-[var(--line)] p-8 flex flex-col gap-3">
@@ -285,7 +283,6 @@ export default function CatalogClient({ initialProducts }) {
                 </svg>
               </div>
               <h3 className="font-display text-lg">Email</h3>
-              <p className="text-sm text-[var(--ink-soft)]">blackkdetail@gmail.com</p>
               <a href="mailto:blackkdetail@gmail.com" className="btn btn-dark self-start border">Enviar mail</a>
             </Reveal>
           </div>
@@ -304,6 +301,17 @@ export default function CatalogClient({ initialProducts }) {
           </div>
         </div>
       </footer>
+
+      {/* BOTÓN FLOTANTE WHATSAPP */}
+      
+       <a href={genericWa}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="wsp-float"
+        aria-label="Consultar por WhatsApp"
+      >
+        <WspIcon className="w-7 h-7" />
+      </a>
 
       {/* MODAL DETALLE */}
       {selected && (

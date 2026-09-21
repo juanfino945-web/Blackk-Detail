@@ -174,3 +174,48 @@ html {
     animation: none !important;
   }
 }
+
+/* Botón flotante de WhatsApp */
+.wsp-float {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 100;
+  width: 56px;
+  height: 56px;
+  border-radius: 9999px;
+  background: #25d366;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.5);
+  transition: transform 0.3s var(--ease), box-shadow 0.3s ease;
+  animation: fadeUp 0.8s var(--ease) 1.2s both;
+}
+.wsp-float::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #25d366;
+  z-index: -1;
+  animation: wspPulse 2.6s ease-out infinite;
+}
+@keyframes wspPulse {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  70%  { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@media (hover: hover) {
+  .wsp-float:hover {
+    transform: scale(1.08);
+    box-shadow: 0 14px 30px -8px rgba(0, 0, 0, 0.6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wsp-float,
+  .wsp-float::before {
+    animation: none !important;
+  }
+}
