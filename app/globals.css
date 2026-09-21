@@ -219,3 +219,10 @@ html {
     animation: none !important;
   }
 }
+
+.hero-parallax {
+  will-change: transform, opacity;
+}
+.hero-logo {
+  transition: none;
+}

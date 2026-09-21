@@ -65,9 +65,44 @@ export default function CatalogClient({ initialProducts }) {
   const [category, setCategory] = useState('Todos');
   const [selected, setSelected] = useState(null);
 
+  const heroRef = useRef(null);
+  const heroContentRef = useRef(null);
+  const heroLogoRef = useRef(null);
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
     onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const heroEl = heroRef.current;
+    if (!heroEl) return;
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return;
+
+    let ticking = false;
+    function update() {
+      const heroHeight = heroEl.offsetHeight || 1;
+      const progress = Math.min(Math.max(window.scrollY / heroHeight, 0), 1);
+      if (heroContentRef.current) {
+        heroContentRef.current.style.transform = `translateY(${progress * 30}px) scale(${1 - progress * 0.06})`;
+        heroContentRef.current.style.opacity = `${1 - progress * 1.15}`;
+      }
+      if (heroLogoRef.current) {
+        heroLogoRef.current.style.transform = `translateY(${progress * -50}px) scale(${1 + progress * 0.04})`;
+        heroLogoRef.current.style.opacity = `${1 - progress * 1.15}`;
+      }
+      ticking = false;
+    }
+    function onScroll() {
+      if (!ticking) {
+        window.requestAnimationFrame(update);
+        ticking = true;
+      }
+    }
+    update();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -117,9 +152,9 @@ export default function CatalogClient({ initialProducts }) {
       </nav>
 
       {/* HERO */}
-      <header id="inicio" className="bg-gradient-to-br from-[var(--dark)] via-[#22262b] to-[#2c3036] text-white">
+      <header id="inicio" ref={heroRef} className="bg-gradient-to-br from-[var(--dark)] via-[#22262b] to-[#2c3036] text-white overflow-hidden">
         <div className="max-w-6xl mx-auto px-6 py-16 md:py-20 grid md:grid-cols-2 gap-12 items-center">
-          <div>
+          <div ref={heroContentRef} className="hero-parallax">
             <span
               className="hero-anim inline-block text-[var(--steel)] text-xs font-semibold tracking-widest uppercase"
               style={{ animationDelay: '0.05s' }}
@@ -143,7 +178,7 @@ export default function CatalogClient({ initialProducts }) {
             </div>
           </div>
           <div className="flex justify-center">
-            <div className="hero-logo bg-white/5 border border-white/10 p-6 max-w-[280px]">
+            <div ref={heroLogoRef} className="hero-parallax hero-logo bg-white/5 border border-white/10 p-6 max-w-[280px]">
               <img src="/logo.jpg" alt="Blackk Detail" className="rounded-sm" />
             </div>
           </div>
