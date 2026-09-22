@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 
 const priceFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
-const DEFAULT_CATEGORIES = ['Ceras / Lavado 600ml', 'Aromatizantes', 'Accesorios', 'Vonixx'];
 
 function cleanPrice(raw) {
   if (typeof raw === 'number') return raw;
@@ -40,6 +39,10 @@ export default function AdminClient() {
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
+  const [categoryList, setCategoryList] = useState([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categorySubmitting, setCategorySubmitting] = useState(false);
+
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -66,6 +69,7 @@ export default function AdminClient() {
   useEffect(() => {
     if (!authorized) return;
     loadProducts();
+    loadCategories();
   }, [authorized]);
 
   function loadProducts() {
@@ -82,6 +86,15 @@ export default function AdminClient() {
       })
       .catch(err => console.error('Error cargando productos:', err))
       .finally(() => setLoadingProducts(false));
+  }
+
+  function loadCategories() {
+    fetch('/api/admin/categories', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d.categories)) setCategoryList(d.categories);
+      })
+      .catch(err => console.error('Error cargando categorías:', err));
   }
 
   async function handleLogin(e) {
@@ -102,6 +115,50 @@ export default function AdminClient() {
   async function handleLogout() {
     await fetch('/api/admin/logout', { method: 'POST' });
     setAuthorized(false);
+  }
+
+  async function handleAddCategory(e) {
+    e.preventDefault();
+    const name = newCategoryName.trim();
+    if (!name) return;
+    setCategorySubmitting(true);
+    try {
+      const res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.category) {
+        setCategoryList(prev => {
+          if (prev.some(c => c.name === data.category.name)) return prev;
+          return [...prev, data.category].sort((a, b) => a.name.localeCompare(b.name));
+        });
+        setNewCategoryName('');
+      } else {
+        alert(data.error || 'No se pudo agregar la categoría.');
+      }
+    } catch (err) {
+      alert('Error de red al agregar la categoría.');
+    } finally {
+      setCategorySubmitting(false);
+    }
+  }
+
+  async function handleDeleteCategory(id, catName) {
+    if (!confirm(`¿Eliminar la categoría "${catName}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setCategoryList(prev => prev.filter(c => c.id !== id));
+        setSuccessMsg(`Categoría "${catName}" eliminada.`);
+      } else {
+        alert(data.error || 'No se pudo eliminar la categoría.');
+      }
+    } catch (err) {
+      alert('Error de red al eliminar la categoría.');
+    }
   }
 
   function handleFileChange(e) {
@@ -165,6 +222,27 @@ export default function AdminClient() {
 
     setSubmitting(true);
     try {
+      // Si es una categoría nueva escrita a mano, la guardamos también en la
+      // tabla de categorías para que quede disponible como opción a futuro.
+      if (category === '__other__' && finalCategory && !categoryList.some(c => c.name === finalCategory)) {
+        try {
+          const catRes = await fetch('/api/admin/categories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: finalCategory })
+          });
+          const catData = await catRes.json().catch(() => ({}));
+          if (catRes.ok && catData.category) {
+            setCategoryList(prev => {
+              if (prev.some(c => c.name === catData.category.name)) return prev;
+              return [...prev, catData.category].sort((a, b) => a.name.localeCompare(b.name));
+            });
+          }
+        } catch (e) {
+          // no bloquea el guardado del producto si esto falla
+        }
+      }
+
       const formData = new FormData();
       formData.append('name', name.trim());
       formData.append('price', String(numPrice));
@@ -186,7 +264,6 @@ export default function AdminClient() {
         return;
       }
 
-      // Actualizar estado reactivo al instante
       if (data.product) {
         if (editingId) {
           setProducts(prev => prev.map(p => p.id === data.product.id ? data.product : p));
@@ -223,8 +300,6 @@ export default function AdminClient() {
       alert('Error de red al eliminar el producto.');
     }
   }
-
-  const categories = Array.from(new Set([...DEFAULT_CATEGORIES, ...products.map(p => p.category).filter(Boolean)]));
 
   if (checking) {
     return <div className="min-h-screen flex items-center justify-center text-[var(--ink-soft)]">Cargando...</div>;
@@ -273,6 +348,43 @@ export default function AdminClient() {
             <button onClick={() => setSuccessMsg('')} className="text-emerald-700 font-bold ml-4">✕</button>
           </div>
         )}
+
+        <div className="bg-white border border-[var(--line)] p-6 mb-8">
+          <h2 className="font-semibold mb-4">Categorías ({categoryList.length})</h2>
+          <form onSubmit={handleAddCategory} className="flex gap-2 mb-4">
+            <input
+              value={newCategoryName}
+              onChange={e => setNewCategoryName(e.target.value)}
+              placeholder="Nueva categoría..."
+              className="flex-1 border border-[var(--line)] px-3 py-2 text-sm"
+            />
+            <button
+              type="submit"
+              disabled={categorySubmitting || !newCategoryName.trim()}
+              className="btn-dark border text-sm px-4 py-2 disabled:opacity-50"
+            >
+              Agregar
+            </button>
+          </form>
+          <div className="flex flex-wrap gap-2">
+            {categoryList.map(c => (
+              <span
+                key={c.id}
+                className="inline-flex items-center gap-2 bg-[var(--bg)] border border-[var(--line)] text-xs font-medium px-3 py-1.5 rounded-full"
+              >
+                {c.name}
+                <button
+                  type="button"
+                  onClick={() => handleDeleteCategory(c.id, c.name)}
+                  className="text-[var(--ink-soft)] hover:text-red-600 font-bold"
+                  title="Eliminar categoría"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className={`bg-white border p-6 mb-8 transition-colors ${editingId ? 'border-[var(--steel)] shadow-sm' : 'border-[var(--line)]'}`}>
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-[var(--line)]">
@@ -326,7 +438,7 @@ export default function AdminClient() {
                 required
               >
                 <option value="">Elegir categoría...</option>
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                {categoryList.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 <option value="__other__">+ Otra categoría personalizada...</option>
               </select>
             </label>
