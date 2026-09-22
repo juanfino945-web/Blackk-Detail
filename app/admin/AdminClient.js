@@ -1,8 +1,35 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const priceFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+const DEFAULT_CATEGORIES = ['Ceras / Lavado 600ml', 'Aromatizantes', 'Accesorios', 'Vonixx'];
+
+function cleanPrice(raw) {
+  if (typeof raw === 'number') return raw;
+  if (!raw) return NaN;
+  let str = String(raw).trim().replace(/[$ \s]/g, '');
+  if (str.includes('.') && str.includes(',')) {
+    if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
+      str = str.replace(/\./g, '').replace(',', '.');
+    } else {
+      str = str.replace(/,/g, '');
+    }
+  } else if (str.includes(',')) {
+    const parts = str.split(',');
+    if (parts.length === 2 && parts[1].length === 3) {
+      str = str.replace(',', '');
+    } else {
+      str = str.replace(',', '.');
+    }
+  } else if (str.includes('.')) {
+    const parts = str.split('.');
+    if (parts.length === 2 && parts[1].length === 3) {
+      str = str.replace('.', '');
+    }
+  }
+  return parseFloat(str);
+}
 
 export default function AdminClient() {
   const [checking, setChecking] = useState(true);
@@ -18,10 +45,15 @@ export default function AdminClient() {
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState('');
   const [customCategory, setCustomCategory] = useState('');
+  const [imageMode, setImageMode] = useState('file'); // 'file' | 'url'
+  const [imageUrl, setImageUrl] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetch('/api/admin/check')
@@ -38,10 +70,17 @@ export default function AdminClient() {
 
   function loadProducts() {
     setLoadingProducts(true);
-    fetch('/api/products')
+    fetch(`/api/products?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+    })
       .then(r => r.json())
-      .then(d => setProducts(d.products || []))
-      .catch(() => setProducts([]))
+      .then(d => {
+        if (Array.isArray(d.products)) {
+          setProducts(d.products);
+        }
+      })
+      .catch(err => console.error('Error cargando productos:', err))
       .finally(() => setLoadingProducts(false));
   }
 
@@ -66,14 +105,14 @@ export default function AdminClient() {
   }
 
   function handleFileChange(e) {
-    const f = e.target.files[0];
+    const f = e.target.files && e.target.files[0];
     setFile(f || null);
     if (f) {
       const reader = new FileReader();
       reader.onload = ev => setPreview(ev.target.result);
       reader.readAsDataURL(f);
     } else {
-      setPreview('');
+      setPreview(imageUrl || '');
     }
   }
 
@@ -81,13 +120,15 @@ export default function AdminClient() {
     setEditingId(p.id);
     setName(p.name);
     setPrice(String(p.price));
-    // Si la categoría del producto ya está en la lista, la seleccionamos tal cual;
-    // si no (caso raro), la tratamos como "otra categoría".
     setCategory(p.category);
     setCustomCategory('');
     setFile(null);
-    setPreview(p.image);
+    setImageUrl(p.image || '');
+    setPreview(p.image || '');
+    setImageMode('file');
     setFormError('');
+    setSuccessMsg('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -98,21 +139,27 @@ export default function AdminClient() {
     setCategory('');
     setCustomCategory('');
     setFile(null);
+    setImageUrl('');
     setPreview('');
+    setImageMode('file');
     setFormError('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setFormError('');
+    setSuccessMsg('');
     const finalCategory = category === '__other__' ? customCategory.trim() : category;
+    const numPrice = cleanPrice(price);
 
-    if (!name.trim() || !price || !finalCategory) {
-      setFormError('Completá nombre, precio y categoría.');
+    if (!name.trim() || isNaN(numPrice) || numPrice < 0 || !finalCategory) {
+      setFormError('Por favor completá nombre, precio numérico válido y categoría.');
       return;
     }
-    if (!editingId && !file) {
-      setFormError('Elegí una imagen para el producto nuevo.');
+
+    if (!editingId && !file && !imageUrl.trim()) {
+      setFormError('Debes seleccionar una imagen para el producto nuevo (archivo o enlace URL).');
       return;
     }
 
@@ -120,9 +167,14 @@ export default function AdminClient() {
     try {
       const formData = new FormData();
       formData.append('name', name.trim());
-      formData.append('price', price);
+      formData.append('price', String(numPrice));
       formData.append('category', finalCategory);
-      if (file) formData.append('image', file);
+
+      if (file) {
+        formData.append('image', file);
+      } else if (imageUrl.trim()) {
+        formData.append('imageUrl', imageUrl.trim());
+      }
 
       const url = editingId ? `/api/admin/products/${editingId}` : '/api/admin/products';
       const method = editingId ? 'PUT' : 'POST';
@@ -133,10 +185,22 @@ export default function AdminClient() {
         setFormError(data.error || 'No se pudo guardar el producto.');
         return;
       }
+
+      // Actualizar estado reactivo al instante
+      if (data.product) {
+        if (editingId) {
+          setProducts(prev => prev.map(p => p.id === data.product.id ? data.product : p));
+          setSuccessMsg(`Producto "${data.product.name}" editado con éxito.`);
+        } else {
+          setProducts(prev => [data.product, ...prev]);
+          setSuccessMsg(`Producto "${data.product.name}" agregado con éxito.`);
+        }
+      }
+
       cancelEdit();
       loadProducts();
     } catch (err) {
-      setFormError('Error de red al guardar el producto.');
+      setFormError('Error de red al guardar el producto. Verificá tu conexión.');
     } finally {
       setSubmitting(false);
     }
@@ -144,16 +208,23 @@ export default function AdminClient() {
 
   async function handleDelete(id, productName) {
     if (!confirm(`¿Eliminar "${productName}" del catálogo?`)) return;
-    const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      if (editingId === id) cancelEdit();
-      loadProducts();
-    } else {
-      alert('No se pudo eliminar el producto.');
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setProducts(prev => prev.filter(p => p.id !== id));
+        setSuccessMsg(`Producto "${productName}" eliminado con éxito.`);
+        if (editingId === id) cancelEdit();
+        loadProducts();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo eliminar el producto.');
+      }
+    } catch (err) {
+      alert('Error de red al eliminar el producto.');
     }
   }
 
-  const categories = Array.from(new Set(products.map(p => p.category)));
+  const categories = Array.from(new Set([...DEFAULT_CATEGORIES, ...products.map(p => p.category).filter(Boolean)]));
 
   if (checking) {
     return <div className="min-h-screen flex items-center justify-center text-[var(--ink-soft)]">Cargando...</div>;
@@ -188,67 +259,197 @@ export default function AdminClient() {
             <h1 className="font-display text-2xl">Panel administrador</h1>
             <p className="text-sm text-[var(--ink-soft)]">Blackk Detail</p>
           </div>
-          <button onClick={handleLogout} className="btn-dark border text-sm px-4 py-2">Cerrar sesión</button>
+          <div className="flex gap-2">
+            <a href="/" className="px-3 py-1.5 text-xs font-medium border border-[var(--line)] bg-white text-[var(--ink)] hover:bg-gray-50 flex items-center">
+              Ver tienda
+            </a>
+            <button onClick={handleLogout} className="btn-dark border text-sm px-4 py-2">Cerrar sesión</button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white border border-[var(--line)] p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">{editingId ? 'Editar producto' : 'Agregar producto'}</h2>
+        {successMsg && (
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-sm flex justify-between items-center">
+            <span>✓ {successMsg}</span>
+            <button onClick={() => setSuccessMsg('')} className="text-emerald-700 font-bold ml-4">✕</button>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className={`bg-white border p-6 mb-8 transition-colors ${editingId ? 'border-[var(--steel)] shadow-sm' : 'border-[var(--line)]'}`}>
+          <div className="flex items-center justify-between mb-4 pb-2 border-b border-[var(--line)]">
+            <div className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${editingId ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+              <h2 className="font-semibold text-lg">{editingId ? 'Editar producto' : 'Agregar nuevo producto'}</h2>
+            </div>
             {editingId && (
-              <button type="button" onClick={cancelEdit} className="text-xs text-[var(--ink-soft)] underline">
-                Cancelar edición
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded border border-gray-300"
+              >
+                Cancelar edición / Agregar nuevo
               </button>
             )}
           </div>
+
           <div className="grid md:grid-cols-2 gap-4 mb-4">
             <label className="text-xs font-semibold text-[var(--ink-soft)] flex flex-col gap-1.5">
-              Nombre
-              <input value={name} onChange={e => setName(e.target.value)} className="border border-[var(--line)] px-3 py-2 font-normal text-[var(--ink)]" />
+              Nombre del producto *
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Ej: Cera Blend Ceramic"
+                className="border border-[var(--line)] px-3 py-2 font-normal text-[var(--ink)]"
+                required
+              />
             </label>
             <label className="text-xs font-semibold text-[var(--ink-soft)] flex flex-col gap-1.5">
-              Precio (ARS)
-              <input type="number" min="0" value={price} onChange={e => setPrice(e.target.value)} className="border border-[var(--line)] px-3 py-2 font-normal text-[var(--ink)]" />
+              Precio (ARS) *
+              <input
+                type="text"
+                inputMode="decimal"
+                value={price}
+                onChange={e => setPrice(e.target.value)}
+                placeholder="Ej: 9150"
+                className="border border-[var(--line)] px-3 py-2 font-normal text-[var(--ink)]"
+                required
+              />
             </label>
           </div>
+
           <div className="grid md:grid-cols-2 gap-4 mb-4">
             <label className="text-xs font-semibold text-[var(--ink-soft)] flex flex-col gap-1.5">
-              Categoría
-              <select value={category} onChange={e => setCategory(e.target.value)} className="border border-[var(--line)] px-3 py-2 font-normal text-[var(--ink)]">
-                <option value="">Elegir...</option>
+              Categoría *
+              <select
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                className="border border-[var(--line)] px-3 py-2 font-normal text-[var(--ink)]"
+                required
+              >
+                <option value="">Elegir categoría...</option>
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                <option value="__other__">Otra categoría...</option>
+                <option value="__other__">+ Otra categoría personalizada...</option>
               </select>
             </label>
             {category === '__other__' && (
               <label className="text-xs font-semibold text-[var(--ink-soft)] flex flex-col gap-1.5">
-                Nueva categoría
-                <input value={customCategory} onChange={e => setCustomCategory(e.target.value)} className="border border-[var(--line)] px-3 py-2 font-normal text-[var(--ink)]" />
+                Nombre de la nueva categoría *
+                <input
+                  value={customCategory}
+                  onChange={e => setCustomCategory(e.target.value)}
+                  placeholder="Ej: Microfibras"
+                  className="border border-[var(--line)] px-3 py-2 font-normal text-[var(--ink)]"
+                  required
+                />
               </label>
             )}
           </div>
-          <label className="text-xs font-semibold text-[var(--ink-soft)] flex flex-col gap-1.5 mb-3">
-            Imagen del producto {editingId && <span className="font-normal normal-case">(dejá vacío para mantener la actual)</span>}
-            <input type="file" accept="image/*" onChange={handleFileChange} className="font-normal text-[var(--ink)] text-sm" />
-          </label>
-          {preview && <img src={preview} alt="preview" className="w-28 h-28 object-cover border border-[var(--line)] mb-3" />}
-          {formError && <p className="text-red-600 text-sm mb-3">{formError}</p>}
-          <button type="submit" disabled={submitting} className="btn btn-primary !bg-[var(--dark)] !text-white">
-            {submitting ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Agregar producto'}
-          </button>
+
+          <div className="border-t border-[var(--line)] pt-4 mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold text-[var(--ink-soft)]">
+                Imagen {editingId && <span className="font-normal text-gray-500">(opcional si no deseás cambiarla)</span>}
+              </label>
+              <div className="text-xs flex gap-3 text-gray-600">
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="imageMode"
+                    value="file"
+                    checked={imageMode === 'file'}
+                    onChange={() => setImageMode('file')}
+                  />
+                  Subir archivo
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="imageMode"
+                    value="url"
+                    checked={imageMode === 'url'}
+                    onChange={() => setImageMode('url')}
+                  />
+                  Pegar URL
+                </label>
+              </div>
+            </div>
+
+            {imageMode === 'file' ? (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="font-normal text-[var(--ink)] text-sm w-full border border-[var(--line)] p-2"
+              />
+            ) : (
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={e => {
+                  setImageUrl(e.target.value);
+                  setPreview(e.target.value);
+                }}
+                placeholder="https://ejemplo.com/imagen.jpg"
+                className="border border-[var(--line)] px-3 py-2 font-normal text-[var(--ink)] text-sm w-full"
+              />
+            )}
+          </div>
+
+          {preview && (
+            <div className="mb-4 flex items-center gap-3 bg-gray-50 p-2 border border-[var(--line)]">
+              <img src={preview} alt="Vista previa" className="w-20 h-20 object-cover border border-[var(--line)] bg-white" />
+              <div className="text-xs text-gray-600">
+                <p className="font-semibold">Vista previa de la imagen</p>
+                {file && <p>Archivo: {file.name} ({(file.size / 1024).toFixed(1)} KB)</p>}
+              </div>
+            </div>
+          )}
+
+          {formError && <p className="text-red-600 text-sm mb-4 font-medium p-2 bg-red-50 border border-red-200">{formError}</p>}
+
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn btn-primary !bg-[var(--dark)] !text-white px-6 py-2.5 font-medium disabled:opacity-50"
+            >
+              {submitting ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Agregar producto'}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="px-4 py-2 text-xs font-semibold border border-[var(--line)] text-gray-600 hover:bg-gray-100"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
         </form>
 
         <div className="bg-white border border-[var(--line)] p-6">
-          <h2 className="font-semibold mb-4">Productos actuales ({products.length})</h2>
-          {loadingProducts ? (
-            <p className="text-sm text-[var(--ink-soft)]">Cargando...</p>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-semibold">Productos en catálogo ({products.length})</h2>
+            <button
+              onClick={loadProducts}
+              className="text-xs text-[var(--ink-soft)] hover:text-black flex items-center gap-1 underline"
+            >
+              🔄 Actualizar lista
+            </button>
+          </div>
+          {loadingProducts && products.length === 0 ? (
+            <p className="text-sm text-[var(--ink-soft)] py-6 text-center">Cargando productos...</p>
           ) : (
-            <div className="flex flex-col gap-2 max-h-[420px] overflow-auto">
+            <div className="flex flex-col gap-2 max-h-[500px] overflow-auto">
               {products.map(p => (
-                <div key={p.id} className={`flex items-center gap-3 border p-2 ${editingId === p.id ? 'border-[var(--dark)]' : 'border-[var(--line)]'}`}>
-                  <img src={p.image} alt={p.name} className="w-11 h-11 object-cover rounded-sm bg-[#EAE8E2]" />
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-3 border p-3 transition-colors ${editingId === p.id ? 'border-[var(--steel)] bg-slate-50' : 'border-[var(--line)] hover:border-gray-400'}`}
+                >
+                  <img src={p.image} alt={p.name} className="w-12 h-12 object-cover rounded-sm bg-[#EAE8E2]" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{p.name}</p>
-                    <p className="text-xs text-[var(--ink-soft)]">{priceFmt.format(p.price)} · {p.category}</p>
+                    <p className="text-sm font-semibold truncate text-[var(--ink)]">{p.name}</p>
+                    <p className="text-xs text-[var(--ink-soft)]">{priceFmt.format(p.price)} · <span className="font-medium">{p.category}</span></p>
                   </div>
                   <button
                     onClick={() => startEdit(p)}
@@ -258,8 +459,8 @@ export default function AdminClient() {
                   </button>
                   <button
                     onClick={() => handleDelete(p.id, p.name)}
-                    className="w-7 h-7 rounded-full border border-[var(--line)] text-[var(--ink-soft)] hover:bg-red-600 hover:text-white hover:border-red-600"
-                    title="Eliminar"
+                    className="w-7 h-7 rounded-full border border-[var(--line)] text-[var(--ink-soft)] hover:bg-red-600 hover:text-white hover:border-red-600 flex items-center justify-center font-bold"
+                    title="Eliminar producto"
                   >
                     ✕
                   </button>

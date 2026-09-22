@@ -58,7 +58,7 @@ function Reveal({ children, delay = 0, className = '' }) {
 }
 
 export default function CatalogClient({ initialProducts }) {
-  const [products] = useState(initialProducts);
+  const products = initialProducts || [];
   const [navOpen, setNavOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [search, setSearch] = useState('');
