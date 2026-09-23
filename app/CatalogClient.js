@@ -152,9 +152,13 @@ export default function CatalogClient({ initialProducts }) {
       </nav>
 
       {/* HERO */}
-      <header id="inicio" ref={heroRef} className="bg-gradient-to-br from-[var(--dark)] via-[#22262b] to-[#2c3036] text-white overflow-hidden">
-        <div className="max-w-6xl mx-auto px-6 py-16 md:py-20 grid md:grid-cols-2 gap-12 items-center">
-          <div ref={heroContentRef} className="hero-parallax">
+      <header id="inicio" ref={heroRef} className="relative bg-gradient-to-br from-[var(--dark)] via-[#22262b] to-[#2c3036] text-white overflow-hidden">
+        <div className="hero-blobs">
+          <div className="hero-blob hero-blob-1" />
+          <div className="hero-blob hero-blob-2" />
+          <div className="hero-blob hero-blob-3" />
+        </div>
+        <div className="relative z-10 max-w-6xl mx-auto px-6 py-16 md:py-20 grid md:grid-cols-2 gap-12 items-center">          <div ref={heroContentRef} className="hero-parallax">
             <span
               className="hero-anim inline-block text-[var(--steel)] text-xs font-semibold tracking-widest uppercase"
               style={{ animationDelay: '0.05s' }}
